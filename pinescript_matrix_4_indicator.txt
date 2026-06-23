@@ -1,0 +1,566 @@
+//@version=5
+
+indicator(title='Matrix 4', overlay=true)
+
+// Source
+
+src = input(defval=close, title='Source')
+
+// Sampling Period
+// Settings for 5min chart, BTCUSDC. For Other coin, change the paremeters
+
+per = input.int(defval=100, minval=1, title='Sampling Period')
+
+// Range Multiplier
+
+mult = input.float(defval=3.0, minval=0.1, title='Range Multiplier')
+
+// Smooth Average Range
+
+smoothrng(x, t, m) =>
+    wper = t * 2 - 1
+    avrng = ta.ema(math.abs(x - x[1]), t)
+    smoothrng = ta.ema(avrng, wper) * m
+    smoothrng
+smrng = smoothrng(src, per, mult)
+
+// Range Filter
+
+rngfilt(x, r) =>
+    rngfilt = x
+    rngfilt := x > nz(rngfilt[1]) ? x - r < nz(rngfilt[1]) ? nz(rngfilt[1]) : x - r : x + r > nz(rngfilt[1]) ? nz(rngfilt[1]) : x + r
+    rngfilt
+filt = rngfilt(src, smrng)
+
+// Filter Direction
+
+upward = 0.0
+upward := filt > filt[1] ? nz(upward[1]) + 1 : filt < filt[1] ? 0 : nz(upward[1])
+downward = 0.0
+downward := filt < filt[1] ? nz(downward[1]) + 1 : filt > filt[1] ? 0 : nz(downward[1])
+
+// Target Bands
+
+hband = filt + smrng
+lband = filt - smrng
+
+// Colors
+
+filtcolor = upward > 0 ? color.lime : downward > 0 ? color.red : color.orange
+barcolor = src > filt and src > src[1] and upward > 0 ? color.lime : src > filt and src < src[1] and upward > 0 ? color.green : src < filt and src < src[1] and downward > 0 ? color.red : src < filt and src > src[1] and downward > 0 ? color.maroon : color.orange
+
+filtplot = plot(filt, color=filtcolor, linewidth=3, title='Range Filter')
+
+// Target
+
+hbandplot = plot(hband, color=color.new(color.aqua, 100), title='High Target')
+lbandplot = plot(lband, color=color.new(color.fuchsia, 100), title='Low Target')
+
+// Fills
+
+fill(hbandplot, filtplot, color=color.new(color.aqua, 90), title='High Target Range')
+fill(lbandplot, filtplot, color=color.new(color.fuchsia, 90), title='Low Target Range')
+
+// Bar Color
+
+barcolor(barcolor)
+
+// Break Outs
+
+longCond = bool(na)
+shortCond = bool(na)
+longCond := src > filt and src > src[1] and upward > 0 or src > filt and src < src[1] and upward > 0
+shortCond := src < filt and src < src[1] and downward > 0 or src < filt and src > src[1] and downward > 0
+
+CondIni = 0
+CondIni := longCond ? 1 : shortCond ? -1 : CondIni[1]
+longCondition = longCond and CondIni[1] == -1
+shortCondition = shortCond and CondIni[1] == 1
+
+//Alerts
+
+// plotshape(longCondition, title='Buy Signal', text='BUY', textcolor=color.new(color.white, 0), style=shape.labelup, size=size.normal, location=location.belowbar, color=color.new(color.green, 0))
+// plotshape(shortCondition, title='Sell Signal', text='SELL', textcolor=color.new(color.white, 0), style=shape.labeldown, size=size.normal, location=location.abovebar, color=color.new(color.red, 0))
+
+// alertcondition(longCondition, title='Buy Alert', message='BUY')
+// alertcondition(shortCondition, title='Sell Alert', message='SELL')
+
+
+
+//For use like Strategy, 
+
+//1. Change the word  "study" for "strategy" at the top
+//2.  Remove the "//" below
+
+//strategy.entry( id = "Long", long = true, when = longCondition )
+//strategy.close( id = "Long", when = shortCondition )
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+len = input(10)
+o = ta.ema(open, len)
+c = ta.ema(close, len)
+h = ta.ema(high, len)
+l = ta.ema(low, len)
+
+haclose = (o + h + l + c) / 4
+haopen = 0.00
+haopen := na(haopen[1]) ? (o + c) / 2 : (haopen[1] + haclose[1]) / 2
+hahigh = math.max(h, math.max(haopen, haclose))
+halow = math.min(l, math.min(haopen, haclose))
+
+len2 = input(10)
+o2 = ta.ema(haopen, len2)
+c2 = ta.ema(haclose, len2)
+h2 = ta.ema(hahigh, len2)
+l2 = ta.ema(halow, len2)
+
+col = o2 > c2 ? color.red : color.lime
+plotcandle(o2, h2, l2, c2, title='heikin smoothed', color=col)
+///////////////////////////////////////////////////////////////////////////////////////
+
+// leftbars = 10//input.int(defval=10, title="No. of left bars to check", minval=5, maxval=50, step=5)
+// rightbars = 10//input.int(defval=10, title="No. of right bars to check", minval=5, maxval=50, step=5)
+// volumema= input(20,title='Volume MA length')
+// volMA = ta.sma(volume, volumema)
+// highh = ta.pivothigh(high, leftbars, rightbars)
+// lowl = ta.pivotlow(low, leftbars, rightbars)
+// atr=ta.atr(leftbars+rightbars)
+// showma = input(false,title='Show MA')
+// //DEMA and TEMA
+// length = 50//input.int(50, minval=1)
+// e1 = ta.ema(hlc3, length)
+// e2 = ta.ema(e1, length)
+// dema = 2 * e1 - e2
+// dema2 = 2*ta.ema(hlc3, 100) - ta.ema(ta.ema(hlc3, 100),length)
+// ema1 = ta.ema(hlc3, length)
+// ema2 = ta.ema(ema1, length)
+// ema3 = ta.ema(ema2, length)
+// tema = 3 * (ema1 - ema2) + ema3
+// plot(showma?dema:na, "DEMA", color=dema>tema?color.red:color.green,linewidth=2)
+// demasell = dema<dema2
+// temasell = dema>tema
+// plot(showma?ta.ema(close,200):na,color=color.rgb(255,20,147,0),title='200 MA',linewidth=2)
+// plot(showma?ta.ema(close,50):na,color=color.rgb(255,255,255,60),title='50 MA',linewidth=2)
+
+// // MACD
+// fastLength = 12//input(12)
+// slowlength = 26//input(26)
+// MACDLength = 9//input(9)
+// src1 = hlc3//request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, hlc3, barmerge.gaps_off, barmerge.lookahead_on)
+// MACD = ta.ema(src1, fastLength) - ta.ema(src1, slowlength)
+// aMACD = ta.ema(MACD, MACDLength)
+// delta = MACD - aMACD
+
+// topp = ta.valuewhen(highh, high[rightbars], 0)
+// bott = ta.valuewhen(lowl, low[rightbars], 0)
+
+// var topshift = 0.0
+// var botshift = 0.0
+
+// if topp != topp[1]
+//     topshift := topp
+//     topshift
+// else
+//     topshift := topp[1]
+//     topshift
+// if bott != bott[1]
+//     botshift := bott
+//     botshift
+// else
+//     botshift := bott[1]
+//     botshift
+
+// nearsup = volume > volMA and  open>close and close<botshift and high>botshift
+// nearres = volume > volMA and open<close and close>topshift and low<topshift
+
+// //Defining number of signal and trailing scenario
+// var Entry=ohlc4
+// var SL=ohlc4
+// var SL1=ohlc4
+// var longtrade=0
+// var shorttrade=0
+// var bullbarindex=0
+// var bearbarindex=0
+// var bullmaxprofpoint=high
+// var bearmaxprofpoint=low
+// var maxprofitpoint=ohlc4
+
+// if nearres and longtrade==0 and delta>0  //and not temasell//and not demasell
+//     Entry:=close
+//     SL1:=math.max(botshift, low-atr)
+//     longtrade:=1
+//     shorttrade:=0
+//     bearmaxprofpoint:=ohlc4
+//     bullmaxprofpoint:=high
+
+// if nearsup and shorttrade==0 and delta<0  //and temasell//and demasell
+//     Entry:=close
+//     SL1:=math.min(topshift, high+atr)
+//     shorttrade:=1
+//     longtrade:=0
+//     bullmaxprofpoint:=ohlc4
+//     bearmaxprofpoint:=low
+
+// //Breakdown or Breakout 
+// // plotshape(shorttrade==1 and shorttrade[1]==0, title='support breakdown', style=shape.labeldown, location=location.abovebar, color=color.red, size=size.small, text="Sell", textcolor=color.white) 
+// // plotshape(longtrade==1 and longtrade[1]==0, title='resistance breakout', style=shape.labelup, location=location.belowbar, color=color.green, size=size.small, text="Buy",  textcolor=color.white)
+
+// //Trend Continuation
+// plotshape(shorttrade==1 and shorttrade[1]==1 and nearsup, title='Downward continuation', style=shape.triangledown, location=location.abovebar, color=color.black, size=size.small) 
+// plotshape(longtrade==1 and nearres and longtrade[1]==1, title='Upward continuation', style=shape.triangleup, location=location.belowbar, color=color.blue, size=size.small)
+
+// //Exit Points
+// if longtrade>0 and close<SL1
+//     longtrade:=0
+
+// if shorttrade>0 and close>SL1
+//     shorttrade:=0
+    
+// //Searching for Maximum profit point
+
+// if longtrade>0
+//     bullmaxprofpoint:=math.max(high, high[1], bullmaxprofpoint)
+//     maxprofitpoint:=bullmaxprofpoint
+//     SL1:=math.max(SL1, botshift)
+
+ 
+// if shorttrade>0
+//     bearmaxprofpoint:=math.min(low, low[1], bearmaxprofpoint)
+//     maxprofitpoint:=bearmaxprofpoint
+//     SL1:=math.min(SL1, topshift)
+
+// //Final output variables
+// p1=plot((shorttrade+longtrade>0)?Entry:na,color=color.black, linewidth=1, style=plot.style_circles, title="Entry point")
+// p2=plot((shorttrade+longtrade>0)?SL1:na, color=shorttrade>0?color.red:longtrade>0?color.green:color.white, linewidth=2, style=plot.style_stepline_diamond, title="Trailing stoploss")
+// p3=plot((shorttrade+longtrade>0)?maxprofitpoint:na, color= color.white, linewidth=1, style=plot.style_circles, title="Max Profit line")
+// fill(p1, p2, color=color.new(color.red, 90), title="Risk zone")
+// fill(p1, p3, color=color.new(color.green,90), title="Reward zone")
+
+// // Alert
+// string alert = na
+
+// if shorttrade==1 and shorttrade[1]==0
+//     alert:= 'Sell signal generated' + '\n'
+
+// if longtrade==1 and longtrade[1]==0
+//     alert:='Buy signal generated' + '\n'
+
+// alert := not na(alert) ? (alert + ' @ = ' + str.tostring(close) + '\n') : na
+// exec = not na(alert) ? true : false
+// // if exec==true 
+// //     alert(alert, alert.freq_once_per_bar_close)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+haTicker = ticker.heikinashi(syminfo.tickerid)
+haClose = request.security(haTicker, timeframe.period, close)
+haOpen = request.security(haTicker, timeframe.period, open)
+haHigh = request.security(haTicker, timeframe.period, high)
+haLow = request.security(haTicker, timeframe.period, low)
+
+//MACD
+fast_length = input(title="Fast Length", defval=12, group="MACD")
+slow_length = input(title="Slow Length", defval=26, group="MACD")
+srcx = haClose
+signal_length = input.int(title="Signal Smoothing",  minval = 1, maxval = 50, defval = 9, group="MACD")
+sma_source = input.string(title="Oscillator MA Type",  defval="EMA", options=["SMA", "EMA"], group="MACD")
+sma_signal = input.string(title="Signal Line MA Type", defval="EMA", options=["SMA", "EMA"], group="MACD")
+
+fast_ma = sma_source == "SMA" ? ta.sma(srcx, fast_length) : ta.ema(srcx, fast_length)
+slow_ma = sma_source == "SMA" ? ta.sma(srcx, slow_length) : ta.ema(srcx, slow_length)
+macd = fast_ma - slow_ma
+signal = sma_signal == "SMA" ? ta.sma(macd, signal_length) : ta.ema(macd, signal_length)
+hist = macd - signal
+
+//SMMA
+smmalen = input.int(7, minval=1, title="SMMA Length", group="SMMA")
+smmasrc = input(close, title="SMMA Source", group="SMMA")
+smma = 0.0
+_sma = ta.sma(smmasrc, smmalen)
+smma := na(smma[1]) ? _sma : (smma[1] * (smmalen - 1) + smmasrc) / smmalen
+//plot(smma, title="SMMA", color=color.blue, linewidth=1)
+
+//LSMA
+lsmalength = input(title="LSMA Length", defval=25, group="LSMA")
+lsmaoffset = input(title="LSMA Offset", defval=0, group="LSMA")
+lsmasrc = input(close, title="LSMA Source", group="LSMA")
+lsma = ta.linreg(lsmasrc, lsmalength, lsmaoffset)
+//plot(lsma, title="LSMA", color=color.yellow, linewidth=1)
+
+
+//Calculation Resistance and Support using MACD Cross
+lookback = input(title='Candle Lookback', defval=11, group="Support & Resistance")
+var previoushigh = float(na)
+var previouslow = float(na)
+lookbackhigh = ta.highest(haHigh, lookback)
+if ta.crossunder(macd,signal)
+    previoushigh := lookbackhigh
+    
+
+lookbacklow = ta.lowest(low, lookback)
+if ta.crossunder(signal,macd)
+    previouslow := lookbacklow
+
+lookbackavg = math.avg(previoushigh, previouslow)
+
+
+///plot(previoushigh, title="Resistance", color=color.red, linewidth=2)
+//plot(previouslow, title="Support", color=color.green, linewidth=2)
+plot(lookbackavg, title='Average Resistance and Support', color=color.new(color.orange, 0), linewidth=2)
+
+buym = ta.crossover(close,lookbackavg)
+sellm = ta.crossunder(close,lookbackavg)
+
+///////////////////////////////////////////////////////////////////////////////////
+
+amplitude = input(title='Amplitude', defval=2)
+channelDeviation = input(title='Channel Deviation', defval=2)
+showArrows = input(title='Show Arrows', defval=true)
+showChannels = input(title='Show Channels', defval=true)
+
+var int trend = 0
+var int nextTrend = 0
+var float maxLowPrice = nz(low[1], low)
+var float minHighPrice = nz(high[1], high)
+
+var float up = 0.0
+var float down = 0.0
+float atrHigh = 0.0
+float atrLow = 0.0
+float arrowUp = na
+float arrowDown = na
+
+atr2 = ta.atr(100) / 2
+dev = channelDeviation * atr2
+
+highPrice = high[math.abs(ta.highestbars(amplitude))]
+lowPrice = low[math.abs(ta.lowestbars(amplitude))]
+highma = ta.sma(high, amplitude)
+lowma = ta.sma(low, amplitude)
+
+if nextTrend == 1
+    maxLowPrice := math.max(lowPrice, maxLowPrice)
+
+    if highma < maxLowPrice and close < nz(low[1], low)
+        trend := 1
+        nextTrend := 0
+        minHighPrice := highPrice
+        minHighPrice
+else
+    minHighPrice := math.min(highPrice, minHighPrice)
+
+    if lowma > minHighPrice and close > nz(high[1], high)
+        trend := 0
+        nextTrend := 1
+        maxLowPrice := lowPrice
+        maxLowPrice
+
+if trend == 0
+    if not na(trend[1]) and trend[1] != 0
+        up := na(down[1]) ? down : down[1]
+        arrowUp := up - atr2
+        arrowUp
+    else
+        up := na(up[1]) ? maxLowPrice : math.max(maxLowPrice, up[1])
+        up
+    atrHigh := up + dev
+    atrLow := up - dev
+    atrLow
+else
+    if not na(trend[1]) and trend[1] != 1
+        down := na(up[1]) ? up : up[1]
+        arrowDown := down + atr2
+        arrowDown
+    else
+        down := na(down[1]) ? minHighPrice : math.min(minHighPrice, down[1])
+        down
+    atrHigh := down + dev
+    atrLow := down - dev
+    atrLow
+
+ht = trend == 0 ? up : down
+
+var color buyColor = color.blue
+var color sellColor = color.red
+
+htColor = trend == 0 ? buyColor : sellColor
+htPlot = plot(ht, title='HalfTrend', linewidth=2, color=htColor)
+
+// atrHighPlot = plot(showChannels ? atrHigh : na, title="ATR High", style=plot.style_circles, color=sellColor)
+// atrLowPlot = plot(showChannels ? atrLow : na, title="ATR Low", style=plot.style_circles, color=buyColor)
+
+// fill(htPlot, atrHighPlot, title="ATR High Ribbon", color=sellColor)
+// fill(htPlot, atrLowPlot, title="ATR Low Ribbon", color=buyColor)
+
+buySignal = not na(arrowUp) and trend == 0 and trend[1] == 1
+sellSignal = not na(arrowDown) and trend == 1 and trend[1] == 0
+
+plotshape(showArrows and buySignal ? atrLow : na, title='Arrow Up', style=shape.triangleup, location=location.absolute, size=size.tiny, color=color.new(buyColor, 0))
+plotshape(showArrows and sellSignal ? atrHigh : na, title='Arrow Down', style=shape.triangledown, location=location.absolute, size=size.tiny, color=color.new(sellColor, 0))
+
+// alertcondition(buySignal, title="Alert: HalfTrend Buy", message="HalfTrend Buy")
+// alertcondition(sellSignal, title="Alert: HalfTrend Sell", message="HalfTrend Sell")
+
+dlen = input.int(defval=20, title='Donchian Channel Period', minval=10)
+
+dchannel(len) =>
+    float hh = ta.highest(len)
+    float ll = ta.lowest(len)
+
+    int trend = 0
+    trend := close > hh[1] ? 1 : close < ll[1] ? -1 : nz(trend[1])
+    trend
+
+dchannelalt(len, maintrend) =>
+    float hh = ta.highest(len)
+    float ll = ta.lowest(len)
+
+    int trend = 0
+    trend := close > hh[1] ? 1 : close < ll[1] ? -1 : nz(trend[1])
+    maintrend == 1 ? trend == 1 ? #00FF00ff : #00FF009f : maintrend == -1 ? trend == -1 ? #FF0000ff : #FF00009f : na
+
+maintrend = dchannel(dlen)
+
+// plot( 5, color = dchannelalt(dlen - 0, maintrend), style = plot.style_columns, histbase= 0)
+// plot(10, color = dchannelalt(dlen - 1, maintrend), style = plot.style_columns, histbase= 5)
+// plot(15, color = dchannelalt(dlen - 2, maintrend), style = plot.style_columns, histbase=10)
+// plot(20, color = dchannelalt(dlen - 3, maintrend), style = plot.style_columns, histbase=15)
+// plot(25, color = dchannelalt(dlen - 4, maintrend), style = plot.style_columns, histbase=20)
+// plot(30, color = dchannelalt(dlen - 5, maintrend), style = plot.style_columns, histbase=25)
+// plot(35, color = dchannelalt(dlen - 6, maintrend), style = plot.style_columns, histbase=30)
+// plot(40, color = dchannelalt(dlen - 7, maintrend), style = plot.style_columns, histbase=35)
+// plot(45, color = dchannelalt(dlen - 8, maintrend), style = plot.style_columns, histbase=40)
+// plot(50, color = dchannelalt(dlen - 9, maintrend), style = plot.style_columns, histbase=45)
+
+g = trend == 0 and buym and o2 < c2 and longCond
+r = trend == 1 and sellm and  o2 > c2 and shortCond
+
+rg = 0
+rg := r ? 1 : g ? 2 : nz(rg[1])
+
+buy11 = 0
+buy11 := r ? 0 : g ? 1 : nz(buy11[1])
+sell11 = 0
+sell11 := r ? 1 : g ? 0 : nz(sell11[1])
+
+buy = buy11 and not buy11[1]
+sell = sell11 and not sell11[1]
+
+muultiple_signal = input(false ,"Multiple signals ?")
+if muultiple_signal
+    buy := g
+    sell := r
+
+// plotshape(buy , color = color.green , style = shape.labelup , text = "Buy" , textcolor = color.white , location = location.belowbar)
+// plotshape(sell , color = color.red , style = shape.labeldown , text = "Sell" , textcolor = color.white , location = location.abovebar)
+Stop = input(300.0,title = "StopLoss")
+
+ProfitPerc = input(600.0,title = "TARGET")
+
+
+long_short = 0
+long_last = (buy) and (nz(long_short[1]) == 0 or nz(long_short[1]) == -1)
+short_last = (sell) and (nz(long_short[1]) == 0 or nz(long_short[1]) == 1)
+long_short := long_last ? 1 : short_last ? -1 : long_short[1]
+
+long_entered = false
+long_entered := long_entered[1]
+
+short_entered = false
+short_entered := short_entered[1]
+
+
+longPrice = ta.valuewhen(buy and not long_entered, close, 0)
+
+
+shortPrice = ta.valuewhen(sell and not short_entered, close, 0)
+
+// if(use_sl)
+//     longPrice := ta.valuewhen(buy,close , 0)
+//     shortPrice := ta.valuewhen(sell,close, 0)
+
+
+longStop =longPrice  - Stop
+shortStop = shortPrice + Stop
+
+// if(use_sl)
+//     longStop := valuewhen(buy1, low , 0)
+//     shortStop := valuewhen(sell1,high, 0)
+
+longTake = longPrice +  ProfitPerc
+shortTake = shortPrice  - ProfitPerc
+
+plot(long_short==1  ? longStop : na, style=plot.style_linebr, color=color.red, linewidth=1, title="Long Fixed SL")
+plot(long_short==-1 ? shortStop : na, style=plot.style_linebr, color=color.red, linewidth=1, title="Short Fixed SL")
+plot(long_short==1  ? longTake : na, style=plot.style_linebr, color=color.navy, linewidth=1, title="Long Fixed TP")
+plot(long_short==-1 ? shortTake : na, style=plot.style_linebr, color=color.navy, linewidth=1, title="Short Fixed TP")
+
+
+longBar1 = ta.barssince(long_last)
+longBar2 = longBar1 >= 1 ? true : false
+shortBar1 = ta.barssince(short_last)
+shortBar2 = shortBar1 >= 1 ? true : false
+
+longSLhit = long_short==1 and longBar2 and low < longStop
+
+//if(long_entered and  sellSignal)
+    //longSLhit := true
+
+plotshape(longSLhit and not (sell and  not(short_entered)  and (long_entered)), style=shape.labelup, location=location.belowbar, color=color.gray, size=size.tiny, title="Stop Loss", text="Long SL", textcolor=color.white)
+shortSLhit = long_short==-1 and shortBar2 and high > shortStop
+
+
+//if(short_entered and buySignal)
+    //shortSLhit := true
+
+plotshape(shortSLhit and not (buy and  not(long_entered)  and (short_entered)), style=shape.labeldown, location=location.abovebar, color=color.gray, size=size.tiny, title="Stop Loss", text="Short SL", textcolor=color.white)
+
+
+longTPhit = long_short==1 and longBar2 and high > longTake
+plotshape(longTPhit, style=shape.labeldown, location=location.abovebar, color=color.navy, size=size.tiny, title="Target", text="Long TP", textcolor=color.white)
+shortTPhit = long_short==-1 and shortBar2 and low < shortTake
+plotshape(shortTPhit, style=shape.labelup, location=location.belowbar, color=color.navy, size=size.tiny, title="Target", text="Short TP", textcolor=color.white)
+
+long_short := (long_short==1 or long_short==0) and longBar2 and (longSLhit or longTPhit) ? 0 : (long_short==-1 or long_short==0) and shortBar2 and (shortSLhit or shortTPhit) ? 0 : long_short
+
+
+plotshape(buy and not(long_entered) , color = color.green , style = shape.labelup , text = "Buy" , textcolor = color.white , location = location.belowbar)
+plotshape(sell and  not(short_entered)  , color = color.red , style = shape.labeldown , text = "Sell" , textcolor = color.white , location = location.abovebar)
+
+
+// plotshape(buy and not(long_entered) and (short_entered), color = color.green , style = shape.labelup , text = "FA Buy" , textcolor = color.white , location = location.belowbar)
+// plotshape(sell and not(short_entered)  and (long_entered), color = color.red , style = shape.labeldown , text = "FA Sell" , textcolor = color.white , location = location.abovebar)
+
+
+// alertcondition(condition=buy and  not(long_entered)  and (short_entered), title="Fully Algo Buy")
+// alertcondition(condition=sell and  not(short_entered)  and (long_entered), title="Fully Algo sell")
+
+alertcondition(condition=buy  and not(long_entered), title="Buy")
+alertcondition(condition=sell  and not(short_entered), title="Sell")
+
+if(long_last)
+    long_entered := true
+    short_entered := false
+if(short_last)
+    short_entered := true
+    long_entered := false
+
+alertcondition(condition= (longSLhit or shortSLhit) and not (sell and  not(short_entered)  and (long_entered)), title="Long/Short SL")
+//alertcondition(condition= shortSLhit and not (buy and  not(long_entered)  and (short_entered)), title="Short SL")
+
+alertcondition(condition=longTPhit or shortTPhit, title="Long/short TP")
+//alertcondition(condition=shortTPhit, title="Short TP")
+
+if(longSLhit or longTPhit )
+    long_entered := false
+
+if(shortSLhit or shortTPhit)
+    short_entered := false
+// if buy
+//     strategy.entry('buy', strategy.long)//, alert_message=longEntry)
+//     strategy.exit('exit', 'buy', limit=longTake, stop=longStop)//, alert_message=exitTrade)
+
+
+// if sell
+//     strategy.entry('sell', strategy.short)//, alert_message=shortEntry)
+//     strategy.exit('exit', 'sell', limit=shortTake)//, stop=shortStop, alert_message=exitTrade)
+
+
